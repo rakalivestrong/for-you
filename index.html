@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASCII Flower Bouquet</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #030305;
+      font-family: 'JetBrains Mono', monospace;
+      color: #e2e8f0;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .pill-btn {
+      background: rgba(15, 16, 22, 0.72);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: rgba(235, 240, 248, 0.78);
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 15px;
+      letter-spacing: 0.03em;
+      transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .pill-btn:hover {
+      background: rgba(30, 33, 46, 0.88);
+      border-color: rgba(255, 255, 255, 0.38);
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7);
+    }
+
+    .pill-btn:active {
+      transform: translateY(0px) scale(0.98);
+    }
+
+    .music-panel {
+      background: rgba(15, 16, 22, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 999px;
+      padding: 6px 16px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+    }
+
+    .slider-track {
+      accent-color: #60a5fa;
+      cursor: pointer;
+    }
+
+    .palette-label {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-style: italic;
+      letter-spacing: 0.05em;
+      text-shadow: 0 0 18px rgba(255, 255, 255, 0.25);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    /* Lyrics Display Container */
+    #lyricsContainer {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-style: italic;
+      pointer-events: none;
+      z-index: 25;
+      text-align: center;
+      transition: all 0.4s ease;
+    }
+
+    .lyric-line {
+      font-size: 19px;
+      line-height: 1.4;
+      letter-spacing: 0.03em;
+      color: rgba(255, 255, 255, 0.95);
+      text-shadow: 0 0 14px rgba(255, 255, 255, 0.45);
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    .lyric-line.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <!-- Click to Enter / Start Music Overlay (Bypass browser autoplay policy) -->
+  <div id="startOverlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer transition-opacity duration-700">
+    <div class="text-center flex flex-col items-center gap-3">
+      <div class="text-2xl sm:text-3xl font-serif italic text-slate-100 tracking-wide">
+        Laufey &mdash; Bewitched
+      </div>
+      <div class="text-[11px] uppercase tracking-[0.25em] text-slate-400 mt-2 border border-white/20 rounded-full px-5 py-2 hover:bg-white/10 transition">
+        click anywhere to bloom & play music
+      </div>
+    </div>
+  </div>
+
+  <!-- Top-left Bloom Replay Button -->
+  <div class="fixed top-4 left-4 sm:top-6 sm:left-6 z-20">
+    <button id="bloomBtn" class="pill-btn rounded-full px-4 py-1.5 sm:px-5 sm:py-2 flex items-center gap-2 cursor-pointer" title="Replay bloom animation">
+      <span class="text-sm opacity-80">↻</span>
+      <span>see me bloom again?</span>
+    </button>
+  </div>
+
+  <!-- Top-right Controls: Music Controls & Wallpaper Download Button -->
+  <div class="fixed top-4 right-4 sm:top-6 sm:right-6 z-20 flex flex-wrap items-center gap-2.5 justify-end">
+    <!-- Compact Audio Player Widget -->
+    <div class="music-panel flex items-center gap-3 text-xs">
+      <button id="musicBtn" class="cursor-pointer text-slate-300 hover:text-white transition flex items-center gap-1.5 focus:outline-none" title="Play / Pause">
+        <span id="musicIcon" class="text-xs">▶</span>
+        <span id="musicText" class="font-serif italic tracking-wide text-sm">Laufey &mdash; Bewitched</span>
+      </button>
+
+      <!-- Track Time Progress Slider -->
+      <div class="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono">
+        <span id="currentTime">0:00</span>
+        <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.1" class="slider-track w-20 sm:w-28 h-1 bg-white/20 rounded-lg" title="Seek track" />
+        <span id="durationTime">0:00</span>
+      </div>
+
+      <!-- Volume Slider -->
+      <div class="flex items-center gap-1.5 text-slate-400 pl-1 border-l border-white/15">
+        <span id="volIcon" class="text-xs">🔊</span>
+        <input type="range" id="volumeSlider" min="0" max="1" value="0.75" step="0.01" class="slider-track w-14 sm:w-16 h-1 bg-white/20 rounded-lg" title="Volume" />
+      </div>
+    </div>
+
+    <!-- Wallpaper Button -->
+    <button id="wallpaperBtn" class="pill-btn rounded-full px-4 py-1.5 sm:px-5 sm:py-2 flex items-center gap-2 cursor-pointer" title="Save high-res PNG wallpaper">
+      <span class="text-sm opacity-80">↓</span>
+      <span>wallpaper</span>
+    </button>
+  </div>
+
+  <!-- Audio Element -->
+  <audio id="audioPlayer" loop preload="auto">
+    <source src="ssstik.io_1795455302416.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- Lyrics Floating Banner (Synced to Reff) -->
+  <div id="lyricsContainer" class="fixed top-20 sm:top-24 inset-x-0 flex flex-col items-center justify-center px-6">
+    <div id="lyricText" class="lyric-line sm:text-2xl">
+      &ldquo;You bewitch me...&rdquo;
+    </div>
+  </div>
+
+  <!-- Bottom Centered Palette Title & Subtle Hint -->
+  <div class="fixed bottom-4 sm:bottom-6 inset-x-0 z-20 pointer-events-none flex flex-col items-center justify-center gap-1">
+    <div id="paletteTitle" class="palette-label text-xl sm:text-2xl text-slate-200/90">
+      Navy Blue
+    </div>
+    <div id="hintText" class="text-[11px] tracking-widest uppercase text-slate-500/70 transition-opacity duration-700">
+      click anywhere to bloom another palette
+    </div>
+  </div>
+
+  <!-- Toast notification for wallpaper save -->
+  <div id="toast" class="fixed top-16 right-4 sm:right-6 z-30 pointer-events-none opacity-0 translate-y-1 transition-all duration-300 bg-slate-900/90 border border-white/15 text-slate-200 text-xs px-3.5 py-2 rounded-full shadow-lg">
+    Wallpaper saved!
+  </div>
+
+  <!-- Main Interactive ASCII Bouquet Canvas -->
+  <canvas id="bouquetCanvas"></canvas>
+
+  <script>
+    /**
+     * Interactive Dense ASCII Art Flower Bouquet
+     * Renders a layered retro-terminal botanical arrangement on HTML5 Canvas
+     * with concentric shaded ASCII roses, glowing baby's breath clouds,
+     * conical shaded wrapping paper, ambient fireflies, and interactive palettes.
+     */
+
+    const canvas = document.getElementById('bouquetCanvas');
+    const ctx = canvas.getContext('2d');
+    const bloomBtn = document.getElementById('bloomBtn');
+    const wallpaperBtn = document.getElementById('wallpaperBtn');
+    const musicBtn = document.getElementById('musicBtn');
+    const musicIcon = document.getElementById('musicIcon');
+    const musicText = document.getElementById('musicText');
+    const audioPlayer = document.getElementById('audioPlayer');
+    const seekSlider = document.getElementById('seekSlider');
+    const currentTimeEl = document.getElementById('currentTime');
+    const durationTimeEl = document.getElementById('durationTime');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const volIcon = document.getElementById('volIcon');
+    const paletteTitleEl = document.getElementById('paletteTitle');
+    const hintTextEl = document.getElementById('hintText');
+    const toastEl = document.getElementById('toast');
+    const lyricTextEl = document.getElementById('lyricText');
+
+    // Timed lyrics synchronization untuk Laufey - Bewitched (Reff, ~25 detik)
+    const LYRICS_TIMELINE = [
+      { start: 0.0, end: 3.2, text: "You bewitch me" },
+      { start: 3.2, end: 7.9, text: "Every damn second you're with me" },
+      { start: 7.9, end: 12.8, text: "I try to think straight but I'm falling so badly" },
+      { start: 12.8, end: 15.2, text: "I'm coming apart" },
+      { start: 15.2, end: 20.3, text: "You wrote me a note, cast a spell on my heart" },
+      { start: 20.3, end: 24.4, text: "And bewitched me" },
+    ];
+
+    let currentLyricIndex = -1;
+
+    function updateLyrics(currentTime) {
+      if (!isAudioPlaying) {
+        lyricTextEl.classList.remove('active');
+        return;
+      }
+
+      let activeLine = null;
+      let activeIndex = -1;
+
+      for (let i = 0; i < LYRICS_TIMELINE.length; i++) {
+        const item = LYRICS_TIMELINE[i];
+        if (currentTime >= item.start && currentTime <= item.end) {
+          activeLine = item.text;
+          activeIndex = i;
+          break;
+        }
+      }
+
+      if (activeIndex !== currentLyricIndex) {
+        currentLyricIndex = activeIndex;
+        if (activeLine) {
+          lyricTextEl.classList.remove('active');
+          setTimeout(() => {
+            lyricTextEl.textContent = `\u201C${activeLine}\u201D`;
+            lyricTextEl.classList.add('active');
+          }, 120);
+        } else {
+          lyricTextEl.classList.remove('active');
+        }
+      }
+    }
+
+    let isAudioPlaying = false;
+    let isSeeking = false;
+
+    audioPlayer.volume = 0.75;
+
+    function formatTime(sec) {
+      if (!sec || isNaN(sec)) return "0:00";
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function toggleMusic(e) {
+      if (e) e.stopPropagation();
+      if (!isAudioPlaying) {
+        audioPlayer.play().then(() => {
+          isAudioPlaying = true;
+          musicIcon.innerHTML = '❚❚';
+          musicText.style.color = '#93c5fd';
+        }).catch((err) => {
+          console.log("Playback error:", err);
+        });
+      } else {
+        audioPlayer.pause();
+        isAudioPlaying = false;
+        musicIcon.innerHTML = '▶';
+        musicText.style.color = '';
+      }
+    }
+
+    musicBtn.addEventListener('click', toggleMusic);
+
+    // Update slider saat lagu berjalan
+    audioPlayer.addEventListener('timeupdate', () => {
+      if (!isSeeking && audioPlayer.duration) {
+        seekSlider.value = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+        currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+      }
+      updateLyrics(audioPlayer.currentTime);
+    });
+
+    audioPlayer.addEventListener('loadedmetadata', () => {
+      durationTimeEl.textContent = formatTime(audioPlayer.duration);
+    });
+
+    // Seek / atur menit lagu
+    seekSlider.addEventListener('mousedown', (e) => { e.stopPropagation(); isSeeking = true; });
+    seekSlider.addEventListener('touchstart', (e) => { e.stopPropagation(); isSeeking = true; });
+    seekSlider.addEventListener('input', (e) => {
+      e.stopPropagation();
+      if (audioPlayer.duration) {
+        const targetSec = (seekSlider.value / 100) * audioPlayer.duration;
+        currentTimeEl.textContent = formatTime(targetSec);
+      }
+    });
+    seekSlider.addEventListener('change', (e) => {
+      e.stopPropagation();
+      if (audioPlayer.duration) {
+        audioPlayer.currentTime = (seekSlider.value / 100) * audioPlayer.duration;
+      }
+      isSeeking = false;
+    });
+
+    // Volume control
+    volumeSlider.addEventListener('click', (e) => e.stopPropagation());
+    volumeSlider.addEventListener('input', (e) => {
+      e.stopPropagation();
+      audioPlayer.volume = volumeSlider.value;
+      if (audioPlayer.volume === 0) {
+        volIcon.textContent = '🔇';
+      } else if (audioPlayer.volume < 0.5) {
+        volIcon.textContent = '🔉';
+      } else {
+        volIcon.textContent = '🔊';
+      }
+    });
+
+    // Dense ASCII character ramp from subtle shadow to dense highlight
+    const DENSITY_RAMP = ['.', ':', '-', '=', '+', '*', 'x', '%', '#', '@'];
+    const CLOUD_CHARS = ['.', ':', '+', '*', 'x', '0', '%', '#', '@'];
+    const LEAF_CHARS = ['.', ':', ';', '+', '*', 'x', '%', '&', '#'];
+
+    // 6 Curated Color Palettes matching the aesthetic
+    const PALETTES = [
+      {
+        name: 'Navy Blue',
+        roseShadow: [10, 18, 48],
+        roseMid: [28, 64, 168],
+        roseBright: [82, 142, 255],
+        roseHighlight: [165, 205, 255],
+        roseGlow: 'rgba(56, 115, 255, 0.45)',
+        coneBase: [52, 64, 92],
+        coneShade: [28, 35, 52],
+        ribbon: [68, 96, 195],
+        cloudTint: [220, 232, 255],
+        cloudGlow: 'rgba(210, 228, 255, 0.55)',
+        ambientGlow: 'rgba(30, 64, 175, 0.14)'
+      },
+      {
+        name: 'Crimson Velvet',
+        roseShadow: [48, 8, 18],
+        roseMid: [168, 24, 52],
+        roseBright: [248, 72, 98],
+        roseHighlight: [255, 175, 185],
+        roseGlow: 'rgba(235, 52, 82, 0.45)',
+        coneBase: [78, 56, 66],
+        coneShade: [42, 28, 35],
+        ribbon: [195, 48, 75],
+        cloudTint: [255, 232, 236],
+        cloudGlow: 'rgba(255, 215, 222, 0.52)',
+        ambientGlow: 'rgba(185, 28, 60, 0.14)'
+      },
+      {
+        name: 'Sakura Blush',
+        roseShadow: [68, 24, 48],
+        roseMid: [212, 88, 142],
+        roseBright: [255, 148, 194],
+        roseHighlight: [255, 220, 236],
+        roseGlow: 'rgba(255, 125, 180, 0.45)',
+        coneBase: [86, 72, 84],
+        coneShade: [46, 38, 46],
+        ribbon: [232, 110, 162],
+        cloudTint: [255, 242, 248],
+        cloudGlow: 'rgba(255, 228, 240, 0.55)',
+        ambientGlow: 'rgba(219, 92, 148, 0.14)'
+      },
+      {
+        name: 'Lavender Mist',
+        roseShadow: [34, 18, 64],
+        roseMid: [112, 68, 205],
+        roseBright: [176, 132, 255],
+        roseHighlight: [228, 205, 255],
+        roseGlow: 'rgba(155, 105, 255, 0.45)',
+        coneBase: [68, 62, 92],
+        coneShade: [36, 32, 52],
+        ribbon: [142, 96, 232],
+        cloudTint: [240, 234, 255],
+        cloudGlow: 'rgba(225, 214, 255, 0.55)',
+        ambientGlow: 'rgba(124, 77, 224, 0.14)'
+      },
+      {
+        name: 'Sunset Marigold',
+        roseShadow: [58, 22, 8],
+        roseMid: [204, 88, 22],
+        roseBright: [255, 158, 44],
+        roseHighlight: [255, 224, 145],
+        roseGlow: 'rgba(245, 138, 32, 0.45)',
+        coneBase: [84, 70, 56],
+        coneShade: [46, 38, 30],
+        ribbon: [224, 112, 34],
+        cloudTint: [255, 246, 228],
+        cloudGlow: 'rgba(255, 236, 198, 0.52)',
+        ambientGlow: 'rgba(217, 102, 24, 0.14)'
+      },
+      {
+        name: 'Bioluminescent Cyan',
+        roseShadow: [8, 42, 52],
+        roseMid: [18, 148, 168],
+        roseBright: [64, 232, 245],
+        roseHighlight: [190, 252, 255],
+        roseGlow: 'rgba(45, 212, 230, 0.45)',
+        coneBase: [48, 74, 84],
+        coneShade: [26, 42, 48],
+        ribbon: [36, 185, 204],
+        cloudTint: [228, 252, 255],
+        cloudGlow: 'rgba(205, 248, 255, 0.55)',
+        ambientGlow: 'rgba(20, 165, 185, 0.14)'
+      }
+    ];
+
+    // State variables
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    let currentPaletteIndex = 0;
+    let activeColors = clonePaletteColors(PALETTES[0]);
+    let targetColors = clonePaletteColors(PALETTES[0]);
+
+    // Grid cells representing the bouquet
+    let bouquetCells = [];
+    let ambientParticles = [];
+    let burstParticles = [];
+
+    // Animation timing
+    let bloomStartTime = performance.now();
+    const BLOOM_DURATION = 2600; // ms for full progressive bloom
+    let hasClickedOnce = false;
+
+    function clonePaletteColors(p) {
+      return {
+        roseShadow: [...p.roseShadow],
+        roseMid: [...p.roseMid],
+        roseBright: [...p.roseBright],
+        roseHighlight: [...p.roseHighlight],
+        coneBase: [...p.coneBase],
+        coneShade: [...p.coneShade],
+        ribbon: [...p.ribbon],
+        cloudTint: [...p.cloudTint],
+        roseGlow: p.roseGlow,
+        cloudGlow: p.cloudGlow,
+        ambientGlow: p.ambientGlow
+      };
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function lerpColor(curr, targ, t) {
+      curr[0] = lerp(curr[0], targ[0], t);
+      curr[1] = lerp(curr[1], targ[1], t);
+      curr[2] = lerp(curr[2], targ[2], t);
+    }
+
+    function rgbString(arr, alpha = 1) {
+      return `rgba(${Math.round(arr[0])}, ${Math.round(arr[1])}, ${Math.round(arr[2])}, ${alpha})`;
+    }
+
+    // Deterministic pseudo-random noise for organic petal shapes
+    function hash2D(x, y) {
+      const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+      return n - Math.floor(n);
+    }
+
+    function valueNoise(x, y) {
+      const ix = Math.floor(x);
+      const iy = Math.floor(y);
+      const fx = x - ix;
+      const fy = y - iy;
+      const ux = fx * fx * (3 - 2 * fx);
+      const uy = fy * fy * (3 - 2 * fy);
+
+      const a = hash2D(ix, iy);
+      const b = hash2D(ix + 1, iy);
+      const c = hash2D(ix, iy + 1);
+      const d = hash2D(ix + 1, iy + 1);
+
+      return lerp(lerp(a, b, ux), lerp(c, d, ux), uy);
+    }
+
+    /**
+     * Procedurally constructs the dense ASCII grid of the bouquet:
+     * 1. Conical wrapping paper with horizontal shading lines and ribbon bow
+     * 2. Jagged lush foliage leaves
+     * 3. 5 Layered focal roses/peonies with spiral petal depth shading
+     * 4. 13 Puffy white/silver baby's breath wildflower clusters around the edges
+     */
+    function buildBouquetGrid() {
+      bouquetCells = [];
+
+      // Grid resolution (columns x rows in logical ASCII units)
+      const cols = 124;
+      const rows = 86;
+      const halfCols = cols / 2;
+
+      // Focal Roses configuration (cx, cy in grid coordinates, rx, ry radius, phase)
+      const roses = [
+        { cx: 0,    cy: -6,  rx: 15.5, ry: 11.5, phase: 0.4,  layer: 3 }, // Center main rose
+        { cx: -15,  cy: 2,   rx: 13.0, ry: 9.8,  phase: 1.9,  layer: 2 }, // Left rose
+        { cx: 15.5, cy: 1.5, rx: 13.2, ry: 10.0, phase: 3.1,  layer: 2 }, // Right rose
+        { cx: -7.5, cy: -15, rx: 11.5, ry: 8.6,  phase: 4.5,  layer: 2 }, // Upper-left rose
+        { cx: 8.5,  cy: -14, rx: 11.8, ry: 8.8,  phase: 5.7,  layer: 2 }  // Upper-right rose
+      ];
+
+      // Baby's breath / White wildflower puffy clusters surrounding perimeter
+      const clouds = [
+        { cx: -14,  cy: -27, rx: 6.8, ry: 4.8, seed: 1.1 }, // Top-left crown
+        { cx: -3,   cy: -24, rx: 7.5, ry: 4.5, seed: 2.3 }, // Top-center-left
+        { cx: 7.5,  cy: -25, rx: 6.8, ry: 4.4, seed: 3.7 }, // Top-center-right
+        { cx: 15.5, cy: -22, rx: 5.8, ry: 4.2, seed: 4.9 }, // Top-right
+        { cx: -21,  cy: -17, rx: 7.6, ry: 5.2, seed: 5.4 }, // Upper-far-left
+        { cx: 21.5, cy: -15, rx: 7.2, ry: 4.9, seed: 6.2 }, // Upper-far-right
+        { cx: -28,  cy: -8,  rx: 7.8, ry: 5.2, seed: 7.1 }, // Mid-far-left
+        { cx: 28,   cy: -7,  rx: 7.6, ry: 5.0, seed: 8.5 }, // Mid-far-right
+        { cx: -25,  cy: 3,   rx: 7.4, ry: 5.4, seed: 9.3 }, // Lower-left wing
+        { cx: 25.5, cy: 4,   rx: 7.5, ry: 5.2, seed: 10.7 },// Lower-right wing
+        { cx: -18,  cy: 11,  rx: 5.8, ry: 4.0, seed: 11.2 },// Bottom-left accent
+        { cx: 18,   cy: 11,  rx: 6.2, ry: 4.3, seed: 12.6 } // Bottom-right accent
+      ];
+
+      // Foliage leaf clusters emerging from cone top
+      const leaves = [
+        { cx: -19, cy: 13, rx: 8.5, ry: 5.5, angle: -0.45 },
+        { cx: -9,  cy: 11, rx: 8.0, ry: 6.0, angle: -0.2 },
+        { cx: 0,   cy: 10, rx: 8.5, ry: 6.2, angle: 0.05 },
+        { cx: 9.5, cy: 11, rx: 8.0, ry: 6.0, angle: 0.25 },
+        { cx: 19,  cy: 13, rx: 8.5, ry: 5.5, angle: 0.45 },
+        { cx: -24, cy: -2, rx: 6.5, ry: 4.5, angle: -0.6 },
+        { cx: 24,  cy: -1, rx: 6.5, ry: 4.5, angle: 0.6 },
+        { cx: 0,   cy: -20, rx: 7.0, ry: 4.0, angle: 0.0 }
+      ];
+
+      // Iterate over every ASCII grid cell (gx: -62..62, gy: -36..48)
+      for (let r = 0; r < rows; r++) {
+        const gy = r - 36;
+        for (let c = 0; c < cols; c++) {
+          const gx = c - halfCols;
+
+          let cell = null;
+
+          // ---------------------------------------------------------
+          // LAYER 1: CONICAL BOUQUET WRAPPER (gy from 12 to 44)
+          // ---------------------------------------------------------
+          if (gy >= 12 && gy <= 44) {
+            const t = (gy - 12) / 32; // 0 at top rim, 1 at bottom tip
+            // Curved cone width narrowing gracefully toward bottom
+            const maxHalfWidth = lerp(21.5, 2.2, Math.pow(t, 0.92));
+            // Slight organic wave along the top edge of the wrapper
+            const topEdgeWave = Math.sin(gx * 0.28) * 1.1 + Math.cos(gx * 0.13) * 0.8;
+
+            if (gy >= 12 + topEdgeWave && Math.abs(gx) <= maxHalfWidth) {
+              const edgeRatio = Math.abs(gx) / Math.max(maxHalfWidth, 0.1);
+              const cylinderShade = Math.cos(edgeRatio * Math.PI * 0.46); // Brighter in center, darker on sides
+              const foldPattern = Math.sin(gx * 0.45 + gy * 0.15) * 0.15;
+              const shade = Math.max(0.1, Math.min(1, cylinderShade + foldPattern));
+
+              // Horizontal wrapper texture characters
+              let ch = '-';
+              if (gy % 4 === 0) ch = '=';
+              else if (gy % 2 === 0) ch = '-';
+              else ch = ':';
+
+              if (edgeRatio > 0.82) ch = '.';
+              if (gy === 44) ch = '~';
+
+              let isRibbon = false;
+              // Ribbon band & bow around gy = 29..33
+              if (gy >= 29 && gy <= 32) {
+                const ribbonDist = Math.abs(gy - 30.5);
+                if (ribbonDist <= 1.3) {
+                  isRibbon = true;
+                  if (Math.abs(gx) <= 3.5) {
+                    // Center knot of the bow
+                    ch = (Math.abs(gx) < 1.5) ? '0' : '#';
+                  } else {
+                    ch = (gy === 30 || gy === 31) ? '#' : '=';
+                  }
+                }
+              }
+              // Ribbon tails hanging below the knot
+              if (gy >= 33 && gy <= 39) {
+                const tailOffset = (gy - 32) * 0.55;
+                if (Math.abs(Math.abs(gx) - tailOffset) < 1.1) {
+                  isRibbon = true;
+                  ch = (gy % 2 === 0) ? 'x' : '+';
+                }
+              }
+
+              cell = {
+                gx,
+                gy,
+                ch,
+                type: isRibbon ? 'ribbon' : 'cone',
+                shade,
+                glow: isRibbon,
+                bloomOrder: 0.05 + (1 - t) * 0.28 // Blooms from bottom tip upward
+              };
+            }
+          }
+
+          // ---------------------------------------------------------
+          // LAYER 2: LUSH GREEN FOLIAGE / LEAVES
+          // ---------------------------------------------------------
+          for (let i = 0; i < leaves.length; i++) {
+            const lf = leaves[i];
+            const dx = gx - lf.cx;
+            const dy = gy - lf.cy;
+            const cosA = Math.cos(lf.angle);
+            const sinA = Math.sin(lf.angle);
+            const rx = (dx * cosA - dy * sinA) / lf.rx;
+            const ry = (dx * sinA + dy * cosA) / lf.ry;
+            const dist = Math.sqrt(rx * rx + ry * ry);
+
+            // Serrated jagged leaf edge
+            const angle = Math.atan2(ry, rx);
+            const serration = Math.sin(angle * 9 + i) * 0.14 + valueNoise(gx * 0.35, gy * 0.35) * 0.18;
+
+            if (dist <= 0.92 + serration) {
+              // Midrib vein runs down center of leaf
+              const vein = 1 - Math.min(1, Math.abs(ry) * 3.2);
+              const shade = Math.max(0.15, Math.min(1, (1 - dist * 0.65) * 0.75 + vein * 0.35));
+              const charIdx = Math.min(LEAF_CHARS.length - 1, Math.floor(shade * LEAF_CHARS.length));
+
+              cell = {
+                gx,
+                gy,
+                ch: LEAF_CHARS[charIdx],
+                type: 'leaf',
+                shade,
+                glow: false,
+                bloomOrder: 0.25 + (1 - (gy + 36) / 80) * 0.25
+              };
+            }
+          }
+
+          // ---------------------------------------------------------
+          // LAYER 3: FOCAL CONCENTRIC LAYERED ROSES / PEONIES
+          // ---------------------------------------------------------
+          for (let i = 0; i < roses.length; i++) {
+            const rose = roses[i];
+            const dx = (gx - rose.cx) / rose.rx;
+            const dy = (gy - rose.cy) / rose.ry;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx);
+
+            // Organic ruffled outer petal silhouette
+            const outerRuffle =
+              Math.sin(angle * 5 + rose.phase) * 0.08 +
+              Math.cos(angle * 3 - rose.phase) * 0.07 +
+              (valueNoise(gx * 0.25 + rose.phase, gy * 0.25) - 0.5) * 0.14;
+
+            if (dist <= 1.0 + outerRuffle) {
+              // Concentric spiral petal rings creating deep 3D rose folds
+              const spiral = dist * 13.5 + Math.sin(angle * 3 + dist * 4.5 + rose.phase) * 1.45;
+              const petalWave = Math.sin(spiral); // -1 (deep crease) to +1 (bright petal ridge)
+
+              // Normalize petal shading: ridges are bright & dense, creases are dark shadows
+              let petalIntensity = (petalWave + 1) * 0.5;
+              petalIntensity = Math.pow(petalIntensity, 0.85);
+
+              // Subtle radial falloff at very outer edge
+              const edgeFade = dist > 0.85 ? 1 - (dist - 0.85) * 2.2 : 1;
+              const shade = Math.max(0.08, Math.min(1, petalIntensity * Math.max(0.35, edgeFade)));
+
+              const charIdx = Math.min(DENSITY_RAMP.length - 1, Math.floor(shade * DENSITY_RAMP.length));
+
+              cell = {
+                gx,
+                gy,
+                ch: DENSITY_RAMP[charIdx],
+                type: 'rose',
+                shade,
+                glow: shade > 0.68,
+                bloomOrder: 0.42 + dist * 0.28 + i * 0.03
+              };
+            }
+          }
+
+          // ---------------------------------------------------------
+          // LAYER 4: GLOWING BABY'S BREATH / WHITE WILDFLOWER CLOUDS
+          // ---------------------------------------------------------
+          for (let i = 0; i < clouds.length; i++) {
+            const cl = clouds[i];
+            const dx = (gx - cl.cx) / cl.rx;
+            const dy = (gy - cl.cy) / cl.ry;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Fluffy cloud-like noise boundary
+            const n = valueNoise(gx * 0.32 + cl.seed * 10, gy * 0.32 + cl.seed * 5);
+            const cloudRadius = 0.72 + n * 0.42;
+
+            if (dist <= cloudRadius) {
+              // Internal florets (tiny dense blossoms inside the cloud)
+              const floretNoise = hash2D(gx + cl.seed * 17, gy + cl.seed * 31);
+              // Sparse organic gaps so clouds look airy yet dense in clusters
+              if (floretNoise > 0.16 || dist < 0.45) {
+                const intensity = Math.max(0.2, Math.min(1, (1 - dist / cloudRadius) * 0.7 + floretNoise * 0.55));
+                const charIdx = Math.min(CLOUD_CHARS.length - 1, Math.floor(intensity * CLOUD_CHARS.length));
+
+                cell = {
+                  gx,
+                  gy,
+                  ch: CLOUD_CHARS[charIdx],
+                  type: 'cloud',
+                  shade: intensity,
+                  glow: true,
+                  bloomOrder: 0.58 + (1 - (gy + 36) / 60) * 0.25 + (i % 4) * 0.03
+                };
+              }
+            }
+          }
+
+          if (cell) {
+            // Precompute slight individual phase for micro-shimmer
+            cell.shimmerPhase = hash2D(gx * 1.3, gy * 1.7) * Math.PI * 2;
+            bouquetCells.push(cell);
+          }
+        }
+      }
+    }
+
+    /**
+     * Initializes ambient drifting ASCII fireflies/dust particles in background
+     */
+    function initAmbientParticles() {
+      ambientParticles = [];
+      const count = Math.min(75, Math.max(40, Math.floor((width * height) / 22000)));
+      const chars = ['·', '+', '*', '✦', '·', '+'];
+
+      for (let i = 0; i < count; i++) {
+        ambientParticles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.18,
+          vy: -0.08 - Math.random() * 0.22, // Gentle upward drift
+          size: 10 + Math.floor(Math.random() * 5),
+          char: chars[Math.floor(Math.random() * chars.length)],
+          alphaBase: 0.12 + Math.random() * 0.35,
+          twinkleSpeed: 0.0015 + Math.random() * 0.003,
+          twinklePhase: Math.random() * Math.PI * 2,
+          driftPhase: Math.random() * Math.PI * 2
+        });
+      }
+    }
+
+    /**
+     * Spawns sparkle particles when user clicks to change palette
+     */
+    function spawnPaletteBurst(x, y) {
+      const chars = ['*', '+', '✦', '·', '0', '#'];
+      for (let i = 0; i < 28; i++) {
+        const angle = (Math.PI * 2 * i) / 28 + (Math.random() - 0.5) * 0.3;
+        const speed = 1.2 + Math.random() * 3.4;
+        burstParticles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 0.5,
+          life: 1.0,
+          decay: 0.016 + Math.random() * 0.014,
+          char: chars[Math.floor(Math.random() * chars.length)],
+          isCloud: Math.random() > 0.65
+        });
+      }
+    }
+
+    /**
+     * Resizes canvas cleanly with DevicePixelRatio support
+     */
+    function handleResize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      initAmbientParticles();
+    }
+
+    /**
+     * Cycles to the next color palette smoothly
+     */
+    function nextPalette(clickX = width / 2, clickY = height / 2) {
+      currentPaletteIndex = (currentPaletteIndex + 1) % PALETTES.length;
+      const nextP = PALETTES[currentPaletteIndex];
+      targetColors = clonePaletteColors(nextP);
+
+      // Update bottom palette label with smooth fade
+      paletteTitleEl.style.opacity = '0';
+      paletteTitleEl.style.transform = 'translateY(4px)';
+      setTimeout(() => {
+        paletteTitleEl.textContent = nextP.name;
+        paletteTitleEl.style.opacity = '1';
+        paletteTitleEl.style.transform = 'translateY(0px)';
+      }, 160);
+
+      if (!hasClickedOnce) {
+        hasClickedOnce = true;
+        hintTextEl.style.opacity = '0';
+      }
+
+      spawnPaletteBurst(clickX, clickY);
+    }
+
+    /**
+     * Triggers the progressive bloom-in animation from bottom cone to top blossoms
+     */
+    function triggerRebloom() {
+      bloomStartTime = performance.now();
+      spawnPaletteBurst(width * 0.5, height * 0.48);
+    }
+
+    /**
+     * Captures and downloads the current canvas as a crisp PNG wallpaper
+     */
+    function downloadWallpaper() {
+      try {
+        const link = document.createElement('a');
+        const slug = PALETTES[currentPaletteIndex].name.toLowerCase().replace(/\s+/g, '-');
+        link.download = `ascii-bouquet-${slug}.png`;
+        link.href = canvas.toDataURL('image/png');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Show subtle toast confirmation
+        toastEl.style.opacity = '1';
+        toastEl.style.transform = 'translateY(0)';
+        setTimeout(() => {
+          toastEl.style.opacity = '0';
+          toastEl.style.transform = 'translateY(4px)';
+        }, 2200);
+      } catch (err) {
+        console.error('Failed to export wallpaper:', err);
+      }
+    }
+
+    /**
+     * Computes RGB color for a given ASCII cell based on its botanical type and shading
+     */
+    function getCellColor(cell, shimmer) {
+      const s = Math.max(0, Math.min(1, cell.shade + shimmer));
+
+      if (cell.type === 'cone') {
+        const c = [
+          lerp(activeColors.coneShade[0], activeColors.coneBase[0], s),
+          lerp(activeColors.coneShade[1], activeColors.coneBase[1], s),
+          lerp(activeColors.coneShade[2], activeColors.coneBase[2], s)
+        ];
+        return rgbString(c, 0.85);
+      }
+
+      if (cell.type === 'ribbon') {
+        const c = [
+          lerp(activeColors.ribbon[0] * 0.6, activeColors.ribbon[0] * 1.25, s),
+          lerp(activeColors.ribbon[1] * 0.6, activeColors.ribbon[1] * 1.25, s),
+          lerp(activeColors.ribbon[2] * 0.6, activeColors.ribbon[2] * 1.25, s)
+        ];
+        return rgbString(c, 0.95);
+      }
+
+      if (cell.type === 'leaf') {
+        // Deep forest green to vibrant emerald highlight
+        const r = lerp(10, 48, s);
+        const g = lerp(42, 148, s);
+        const b = lerp(24, 78, s);
+        return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, 0.92)`;
+      }
+
+      if (cell.type === 'rose') {
+        let c;
+        if (s < 0.42) {
+          const t = s / 0.42;
+          c = [
+            lerp(activeColors.roseShadow[0], activeColors.roseMid[0], t),
+            lerp(activeColors.roseShadow[1], activeColors.roseMid[1], t),
+            lerp(activeColors.roseShadow[2], activeColors.roseMid[2], t)
+          ];
+        } else if (s < 0.82) {
+          const t = (s - 0.42) / 0.4;
+          c = [
+            lerp(activeColors.roseMid[0], activeColors.roseBright[0], t),
+            lerp(activeColors.roseMid[1], activeColors.roseBright[1], t),
+            lerp(activeColors.roseMid[2], activeColors.roseBright[2], t)
+          ];
+        } else {
+          const t = (s - 0.82) / 0.18;
+          c = [
+            lerp(activeColors.roseBright[0], activeColors.roseHighlight[0], t),
+            lerp(activeColors.roseBright[1], activeColors.roseHighlight[1], t),
+            lerp(activeColors.roseBright[2], activeColors.roseHighlight[2], t)
+          ];
+        }
+        return rgbString(c, 0.98);
+      }
+
+      // Baby's breath white/silver glowing cluster
+      const c = [
+        lerp(145, activeColors.cloudTint[0], s),
+        lerp(152, activeColors.cloudTint[1], s),
+        lerp(168, activeColors.cloudTint[2], s)
+      ];
+      return rgbString(c, 0.72 + s * 0.28);
+    }
+
+    /**
+     * Main Render Loop
+     */
+    function render(now) {
+      // Smoothly interpolate active palette colors toward target palette
+      const colorLerpSpeed = 0.065;
+      lerpColor(activeColors.roseShadow, targetColors.roseShadow, colorLerpSpeed);
+      lerpColor(activeColors.roseMid, targetColors.roseMid, colorLerpSpeed);
+      lerpColor(activeColors.roseBright, targetColors.roseBright, colorLerpSpeed);
+      lerpColor(activeColors.roseHighlight, targetColors.roseHighlight, colorLerpSpeed);
+      lerpColor(activeColors.coneBase, targetColors.coneBase, colorLerpSpeed);
+      lerpColor(activeColors.coneShade, targetColors.coneShade, colorLerpSpeed);
+      lerpColor(activeColors.ribbon, targetColors.ribbon, colorLerpSpeed);
+      lerpColor(activeColors.cloudTint, targetColors.cloudTint, colorLerpSpeed);
+      activeColors.roseGlow = targetColors.roseGlow;
+      activeColors.cloudGlow = targetColors.cloudGlow;
+      activeColors.ambientGlow = targetColors.ambientGlow;
+
+      // 1. Pitch-black background
+      ctx.fillStyle = '#030305';
+      ctx.fillRect(0, 0, width, height);
+
+      // 2. Soft ambient radial backdrop glow behind the bouquet
+      const centerX = width * 0.5;
+      const centerY = height * 0.47;
+      const maxDim = Math.min(width, height);
+      const radialGrad = ctx.createRadialGradient(
+        centerX,
+        centerY - maxDim * 0.05,
+        maxDim * 0.02,
+        centerX,
+        centerY,
+        maxDim * 0.48
+      );
+      radialGrad.addColorStop(0, activeColors.ambientGlow);
+      radialGrad.addColorStop(1, 'rgba(3, 3, 5, 0)');
+      ctx.fillStyle = radialGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // 3. Render ambient drifting fireflies / dust particles
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowBlur = 0;
+
+      for (let i = 0; i < ambientParticles.length; i++) {
+        const p = ambientParticles[i];
+        p.x += p.vx + Math.sin(now * 0.0008 + p.driftPhase) * 0.14;
+        p.y += p.vy;
+
+        // Wrap around screen edges
+        if (p.y < -20) {
+          p.y = height + 20;
+          p.x = Math.random() * width;
+        }
+        if (p.x < -20) p.x = width + 20;
+        if (p.x > width + 20) p.x = -20;
+
+        const twinkle = (Math.sin(now * p.twinkleSpeed + p.twinklePhase) + 1) * 0.5;
+        const alpha = p.alphaBase * (0.35 + twinkle * 0.65);
+
+        ctx.font = `${p.size}px "JetBrains Mono", monospace`;
+        ctx.fillStyle = `rgba(215, 225, 245, ${alpha.toFixed(3)})`;
+        ctx.fillText(p.char, p.x, p.y);
+      }
+
+      // 4. Calculate responsive ASCII grid cell sizing so bouquet fits any screen
+      // Target grid spans ~76 cols wide x 82 rows tall
+      const scaleX = (width * 0.88) / 76;
+      const scaleY = (height * 0.82) / 84;
+      const cellH = Math.max(6.2, Math.min(11.2, Math.min(scaleX * 1.45, scaleY)));
+      const cellW = cellH * 0.66;
+      const fontSize = Math.max(7, Math.round(cellH * 1.05));
+
+      ctx.font = `500 ${fontSize}px "JetBrains Mono", monospace`;
+
+      // Bloom progression (0 to 1)
+      const elapsedBloom = now - bloomStartTime;
+      const bloomProgress = Math.min(1, elapsedBloom / BLOOM_DURATION);
+
+      // 5. Render the dense ASCII Bouquet cells
+      for (let i = 0; i < bouquetCells.length; i++) {
+        const cell = bouquetCells[i];
+
+        // Progressive bloom visibility check
+        if (bloomProgress < 1) {
+          const cellStart = cell.bloomOrder * 0.78;
+          if (bloomProgress < cellStart) continue;
+        }
+
+        // Smooth pop-in scale/alpha during bloom
+        let cellAlpha = 1;
+        let bloomLift = 0;
+        if (bloomProgress < 1) {
+          const cellStart = cell.bloomOrder * 0.78;
+          const localT = Math.min(1, (bloomProgress - cellStart) / 0.22);
+          const easeOut = 1 - Math.pow(1 - localT, 3);
+          cellAlpha = easeOut;
+          bloomLift = (1 - easeOut) * 6;
+        }
+
+        // Gentle organic wind sway anchored at the bottom tip of the cone (gy = 44)
+        const heightFromBase = Math.max(0, 44 - cell.gy) / 80; // 0 at base, 1 at top crown
+        const swayAmount = Math.pow(heightFromBase, 1.55);
+        const windX =
+          Math.sin(now * 0.0014 + cell.gy * 0.045) * 4.2 * swayAmount +
+          Math.cos(now * 0.0009 + cell.gx * 0.05) * 1.4 * swayAmount;
+        const windY = Math.sin(now * 0.0018 + cell.gx * 0.06) * 1.1 * swayAmount;
+
+        const px = centerX + cell.gx * cellW + windX;
+        const py = centerY + (cell.gy - 3) * cellH + windY + bloomLift;
+
+        // Subtle shimmer on petals and white clusters
+        const shimmer = Math.sin(now * 0.0025 + cell.shimmerPhase) * 0.05;
+
+        // Apply soft cloudy glow to baby's breath clusters and bright rose highlights
+        if (cell.type === 'cloud') {
+          ctx.shadowColor = activeColors.cloudGlow;
+          ctx.shadowBlur = 11;
+        } else if (cell.type === 'rose' && cell.glow) {
+          ctx.shadowColor = activeColors.roseGlow;
+          ctx.shadowBlur = 7;
+        } else if (cell.type === 'ribbon') {
+          ctx.shadowColor = activeColors.roseGlow;
+          ctx.shadowBlur = 5;
+        } else {
+          ctx.shadowBlur = 0;
+        }
+
+        ctx.globalAlpha = cellAlpha;
+        ctx.fillStyle = getCellColor(cell, shimmer);
+        ctx.fillText(cell.ch, px, py);
+      }
+
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+
+      // 6. Render interactive click sparkle burst particles
+      for (let i = burstParticles.length - 1; i >= 0; i--) {
+        const bp = burstParticles[i];
+        bp.x += bp.vx;
+        bp.y += bp.vy;
+        bp.vy += 0.03; // gentle gravity
+        bp.vx *= 0.97;
+        bp.life -= bp.decay;
+
+        if (bp.life <= 0) {
+          burstParticles.splice(i, 1);
+          continue;
+        }
+
+        ctx.font = `600 11px "JetBrains Mono", monospace`;
+        if (bp.isCloud) {
+          ctx.shadowColor = activeColors.cloudGlow;
+          ctx.shadowBlur = 8;
+          ctx.fillStyle = rgbString(activeColors.cloudTint, bp.life);
+        } else {
+          ctx.shadowColor = activeColors.roseGlow;
+          ctx.shadowBlur = 8;
+          ctx.fillStyle = rgbString(activeColors.roseBright, bp.life);
+        }
+        ctx.fillText(bp.char, bp.x, bp.y);
+      }
+
+      ctx.shadowBlur = 0;
+      requestAnimationFrame(render);
+    }
+
+    // Event Listeners
+    window.addEventListener('resize', handleResize);
+
+    canvas.addEventListener('click', (e) => {
+      if (!isAudioPlaying && audioPlayer.src) {
+        audioPlayer.play().then(() => {
+          isAudioPlaying = true;
+          musicIcon.innerHTML = '❚❚';
+          musicBtn.style.borderColor = 'rgba(147, 197, 253, 0.6)';
+          musicBtn.style.color = '#bfdbfe';
+        }).catch(() => {});
+      }
+      nextPalette(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowRight') {
+        e.preventDefault();
+        nextPalette(width * 0.5, height * 0.45);
+      }
+    });
+
+    bloomBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      triggerRebloom();
+    });
+
+    wallpaperBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      downloadWallpaper();
+    });
+
+    const startOverlay = document.getElementById('startOverlay');
+
+    function startExperience() {
+      if (startOverlay) {
+        startOverlay.style.opacity = '0';
+        setTimeout(() => startOverlay.remove(), 700);
+      }
+      if (!isAudioPlaying) {
+        audioPlayer.play().then(() => {
+          isAudioPlaying = true;
+          musicIcon.innerHTML = '❚❚';
+          musicText.style.color = '#93c5fd';
+        }).catch(() => {});
+      }
+      triggerRebloom();
+    }
+
+    if (startOverlay) {
+      startOverlay.addEventListener('click', startExperience);
+    }
+
+    // Auto-play musik saat web terbuka / interaksi pertama
+    function tryAutoPlay() {
+      audioPlayer.play().then(() => {
+        isAudioPlaying = true;
+        musicIcon.innerHTML = '❚❚';
+        musicText.style.color = '#93c5fd';
+        if (startOverlay) {
+          startOverlay.style.opacity = '0';
+          setTimeout(() => startOverlay.remove(), 700);
+        }
+      }).catch(() => {
+        // Autoplay terblokir browser: overlay siap diklik sekali
+      });
+    }
+
+    // Initialize and start animation loop on load
+    window.onload = function () {
+      handleResize();
+      buildBouquetGrid();
+      bloomStartTime = performance.now();
+      requestAnimationFrame(render);
+      tryAutoPlay();
+    };
+  </script>
+</body>
+</html>
